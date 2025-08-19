@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Generator App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      background: #f0f2f5;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #image-container {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    #image-container img {
+      max-width: 250px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <h1>Meine Image Generator App</h1>
+  <input id="prompt" type="text" placeholder="Schreib hier deine Bildidee..." size="40">
+  <button onclick="generateImage()">Generieren</button>
+
+  <div id="image-container"></div>
+
+  <script>
+    function generateImage() {
+      const prompt = document.getElementById("prompt").value.trim();
+      const container = document.getElementById("image-container");
+      container.innerHTML = ""; // reset
+
+      if (!prompt) {
+        alert("Bitte gib eine Bildbeschreibung ein!");
+        return;
+      }
+
+      // 🔥 Aktuell nur ein Platzhalter-Bild
+      const img = document.createElement("img");
+      img.src = "https://placekitten.com/400/300?text=" + encodeURIComponent(prompt);
+      img.alt = prompt;
+      container.appendChild(img);
+
+      // Später: hier binden wir deine echte API ein
+    }
+  </script>
+</body>
+</html>
