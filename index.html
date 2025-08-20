@@ -1,80 +1,100 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Generator App</title>
+  <title>Bild Generator</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px;
-      background: #f0f2f5;
+      margin: 20px;
+      text-align: center;
+      background: #111;
+      color: #eee;
     }
-    h1 {
-      margin-bottom: 20px;
-      color: #333;
-    }
-    input, button {
+    input {
+      width: 80%;
+      max-width: 400px;
       padding: 10px;
-      margin: 5px;
-      font-size: 16px;
       border-radius: 8px;
-      border: 1px solid #ccc;
+      border: none;
+      margin-bottom: 10px;
     }
     button {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
+      padding: 10px 20px;
       border: none;
+      border-radius: 8px;
+      background: #4cafef;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
     }
     button:hover {
-      background: #45a049;
+      background: #3698d6;
     }
     #image-container {
       margin-top: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
     }
-    #image-container img {
-      max-width: 250px;
+    img {
+      max-width: 90%;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-top: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
     }
   </style>
 </head>
 <body>
-  <h1>Meine Image Generator App</h1>
-  <input id="prompt" type="text" placeholder="Schreib hier deine Bildidee..." size="40">
+  <h1>🖼️ Dein Bild Generator</h1>
+  <input type="text" id="prompt" placeholder="Schreib hier deine Bild-Idee...">
+  <br>
   <button onclick="generateImage()">Generieren</button>
-
   <div id="image-container"></div>
 
   <script>
-    function generateImage() {
+    async function generateImage() {
       const prompt = document.getElementById("prompt").value.trim();
       const container = document.getElementById("image-container");
-      container.innerHTML = ""; // reset
+      container.innerHTML = "";
+      if (!prompt) return alert("Bitte gib eine Eingabe ein!");
 
-      if (!prompt) {
-        alert("Bitte gib eine Bildbeschreibung ein!");
-        return;
+      const url = "https://stablediffusionapi.com/api/v4/dreambooth";
+      const body = {
+        key: "R9JFvW6IvVdgvP1SvR2N0m2LcEJGyfTSwCfjnJVkahuCHMLPqXRymaLcLL2d", // dein Key
+        model_id: "newrealityxl-global-nsfw",
+        prompt,
+        negative_prompt: "",
+        width: 512,
+        height: 512,
+        samples: 1,
+        num_inference_steps: 30,
+        safety_checker: "no",
+        enhance_prompt: "yes",
+        guidance_scale: 7.5
+      };
+
+      container.innerHTML = "⏳ Generiere Bild...";
+
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error(`Response: ${res.statusText}`);
+        const data = await res.json();
+        console.log(data);
+
+        const imgUrl = data.output?.[0] || data.url || data.image;
+        if (!imgUrl) throw new Error("Kein Bild-Link in der Antwort gefunden.");
+
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        container.innerHTML = "";
+        container.appendChild(img);
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = "❌ Fehler bei der Bildgenerierung";
       }
-
-      // 🔥 Aktuell nur ein Platzhalter-Bild
-      const img = document.createElement("img");
-      img.src = "https://placekitten.com/400/300?text=" + encodeURIComponent(prompt);
-      img.alt = prompt;
-      container.appendChild(img);
-
-      // Später: hier binden wir deine echte API ein
     }
   </script>
 </body>
