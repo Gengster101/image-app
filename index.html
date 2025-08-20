@@ -3,65 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bild Generator</title>
+  <title>Bild Generator Debug</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      text-align: center;
-      background: #111;
-      color: #eee;
-    }
-    input {
-      width: 80%;
-      max-width: 400px;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #4cafef;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #3698d6;
-    }
-    #image-container {
-      margin-top: 20px;
-      text-align: center;
-      white-space: pre-wrap;
-    }
-    img {
-      max-width: 90%;
-      border-radius: 12px;
-      margin-top: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.6);
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #222; color: #eee; text-align: center; }
+    textarea { width: 90%; height: 300px; margin-top: 20px; font-family: monospace; }
+    input, button { padding: 10px; margin: 5px; border-radius: 6px; border: none; }
+    button { background: #4cafef; color: white; cursor: pointer; }
+    button:hover { background: #3698d6; }
+    img { max-width: 90%; margin-top: 15px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
   </style>
 </head>
 <body>
-  <h1>🖼️ Dein Bild Generator</h1>
-  <input type="text" id="prompt" placeholder="Schreib hier deine Bild-Idee...">
-  <br>
-  <button onclick="generateImage()">Generieren</button>
+  <h1>Debug Bild Generator</h1>
+  <input type="text" id="prompt" placeholder="Prompt eingeben..." size="40">
+  <button onclick="generateImage()">Generieren + Debug</button>
   <div id="image-container"></div>
+  <textarea id="debug-output" placeholder="API Antwort erscheint hier..." readonly></textarea>
 
   <script>
     async function generateImage() {
       const prompt = document.getElementById("prompt").value.trim();
-      const container = document.getElementById("image-container");
-      container.innerHTML = "";
+      const imgDiv = document.getElementById("image-container");
+      const debug = document.getElementById("debug-output");
+      imgDiv.innerHTML = "";
+      debug.value = "";
+
       if (!prompt) return alert("Bitte gib eine Eingabe ein!");
 
       const url = "https://stablediffusionapi.com/api/v4/dreambooth";
       const body = {
-        key: "R9JFvW6IvVdgvP1SvR2N0m2LcEJGyfTSwCfjnJVkahuCHMLPqXRymaLcLL2d", // dein Key
+        key: "R9JFvW6IvVdgvP1SvR2N0m2LcEJGyfTSwCfjnJVkahuCHMLPqXRymaLcLL2d",
         model_id: "newrealityxl-global-nsfw",
         prompt,
         negative_prompt: "",
@@ -74,37 +45,34 @@
         guidance_scale: 7.5
       };
 
-      container.innerHTML = "⏳ Generiere Bild...";
-
+      debug.value = "⏳ Anfrage…";
       try {
         const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
         });
-        if (!res.ok) throw new Error(`Response: ${res.statusText}`);
-        const data = await res.json();
-        console.log("API Antwort:", data);
+        const text = await res.text();
+        debug.value = text;  // JSON oder Fehler
 
-        // Zeig die komplette Antwort im Browser an
-        container.innerHTML = "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          console.error("JSON parse error:", jsonErr);
+          return;
+        }
 
-        // Versuch, ein Bild zu finden
-        const imgUrl =
-          data.output?.[0] ||
-          data.output ||
-          data.url ||
-          data.image;
-
+        // Versuche Bild aus Daten zu holen
+        const imgUrl = data.output?.[0] || data.url || data.image;
         if (imgUrl) {
           const img = document.createElement("img");
           img.src = imgUrl;
-          container.innerHTML = "";
-          container.appendChild(img);
+          imgDiv.appendChild(img);
         }
       } catch (err) {
         console.error(err);
-        container.innerHTML = "❌ Fehler bei der Bildgenerierung";
+        debug.value = "Fehler:\n" + err.toString();
       }
     }
   </script>
