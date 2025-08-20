@@ -34,6 +34,8 @@
     }
     #image-container {
       margin-top: 20px;
+      text-align: center;
+      white-space: pre-wrap;
     }
     img {
       max-width: 90%;
@@ -82,15 +84,24 @@
         });
         if (!res.ok) throw new Error(`Response: ${res.statusText}`);
         const data = await res.json();
-        console.log(data);
+        console.log("API Antwort:", data);
 
-        const imgUrl = data.output?.[0] || data.url || data.image;
-        if (!imgUrl) throw new Error("Kein Bild-Link in der Antwort gefunden.");
+        // Zeig die komplette Antwort im Browser an
+        container.innerHTML = "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
 
-        const img = document.createElement("img");
-        img.src = imgUrl;
-        container.innerHTML = "";
-        container.appendChild(img);
+        // Versuch, ein Bild zu finden
+        const imgUrl =
+          data.output?.[0] ||
+          data.output ||
+          data.url ||
+          data.image;
+
+        if (imgUrl) {
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          container.innerHTML = "";
+          container.appendChild(img);
+        }
       } catch (err) {
         console.error(err);
         container.innerHTML = "❌ Fehler bei der Bildgenerierung";
