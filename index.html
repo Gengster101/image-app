@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bild Generator (ModelsLab API – Fix)</title>
+  <title>Bild Generator (ModelsLab v6)</title>
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin:20px; background:#111; color:#eee; text-align:center; }
-    h1 { margin-bottom: 6px; }
-    .row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin: 12px 0; }
-    input, button, select { padding:10px; border-radius:8px; border:none; font-size:16px; }
-    input { width:min(90vw, 420px); }
-    button { background:#4cafef; color:#fff; font-weight:600; cursor:pointer; }
-    button:hover { background:#3698d6; }
-    img { max-width:min(92vw, 720px); border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.5); margin-top:14px; }
-    textarea { width:min(92vw, 720px); height:220px; margin:14px auto 0; display:block; font-family:monospace; border-radius:8px; border:none; padding:10px; background:#000; color:#0f0; }
-    #status { margin-top: 6px; }
-    small { opacity:.85; }
+    body{font-family:system-ui,Arial,sans-serif;background:#111;color:#eee;margin:20px;text-align:center}
+    h1{margin:8px 0}
+    .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+    input,button,select{padding:10px;border-radius:8px;border:none;font-size:16px}
+    input{width:min(90vw,420px)}
+    button{background:#4cafef;color:#fff;font-weight:600;cursor:pointer}
+    button:hover{background:#3698d6}
+    img{max-width:min(92vw,720px);border-radius:12px;box-shadow:0 0 10px rgba(0,0,0,.5);margin-top:14px}
+    textarea{width:min(92vw,720px);height:220px;margin:14px auto 0;display:block;
+             font-family:monospace;border-radius:8px;border:none;padding:10px;background:#000;color:#0f0}
+    #status{margin-top:6px}
+    small{opacity:.85}
   </style>
 </head>
 <body>
   <h1>🖼️ Bild Generator</h1>
-  <small>Modell: <code>newrealityxl-global-nsfw</code> • Endpoint: v4/dreambooth</small>
+  <small>Endpoint: <code>modelslab.com/api/v6/realtime/text2img</code></small>
 
   <div class="row">
     <input id="prompt" placeholder="Schreib hier deine Bild-Idee…" />
@@ -33,9 +34,6 @@
       <option value="768x768">768×768</option>
       <option value="1024x1024">1024×1024</option>
     </select>
-    <select id="steps">
-      <option>21</option><option selected>31</option><option>41</option><option>51</option>
-    </select>
     <select id="samples">
       <option selected>1</option><option>2</option><option>3</option><option>4</option>
     </select>
@@ -46,35 +44,26 @@
   <textarea id="debug" placeholder="Debug-Ausgabe …" readonly></textarea>
 
   <script>
-    // ⚠️ Hinweis: Ein Key im Frontend ist öffentlich sichtbar. Für Produktion -> kleinen Proxy verwenden.
+    // Hinweis: Key im Frontend ist sichtbar. Für Produktion: kleinen Backend-Proxy verwenden.
     const API_KEY = "R9JFvW6IvVdgvP1SvR2N0m2LcEJGyfTSwCfjnJVkahuCHMLPqXRymaLcLL2d";
-    const MODEL_ID = "newrealityxl-global-nsfw";
-    const TXT2IMG_URL = "https://stablediffusionapi.com/api/v4/dreambooth";
-    const FETCH_URL   = "https://stablediffusionapi.com/api/v4/dreambooth/fetch";
-    const RELOAD_URL  = "https://stablediffusionapi.com/api/v4/dreambooth/model_reload";
+    const TXT2IMG_URL = "https://modelslab.com/api/v6/realtime/text2img";
+    const FETCH_BASE  = "https://modelslab.com/api/v6/realtime/fetch/"; // + {id}
 
     const promptEl = document.getElementById("prompt");
-    const sizeEl = document.getElementById("size");
-    const stepsEl = document.getElementById("steps");
-    const samplesEl = document.getElementById("samples");
-    const btn = document.getElementById("btn");
+    const sizeEl   = document.getElementById("size");
+    const samplesEl= document.getElementById("samples");
+    const btn      = document.getElementById("btn");
     const statusEl = document.getElementById("status");
-    const imgWrap = document.getElementById("image");
-    const debugEl = document.getElementById("debug");
+    const imgWrap  = document.getElementById("image");
+    const debugEl  = document.getElementById("debug");
 
-    function setStatus(msg){ statusEl.textContent = msg || ""; }
-    function setDebug(obj, extra=""){
-      let body = "";
-      try { body = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2); } catch(e){ body = String(obj); }
-      debugEl.value = (extra ? extra + "\n" : "") + body;
-    }
-    function dims(){
-      const [w,h] = sizeEl.value.split("x").map(v => v.trim());
-      return { w, h };
-    }
+    const setStatus = (t="") => statusEl.textContent = t;
+    const setDebug  = (v) => debugEl.value = (typeof v==="string") ? v : JSON.stringify(v,null,2);
+    const dims = () => { const [w,h]=sizeEl.value.split("x").map(Number); return {w,h}; };
+
     function showImageFromData(data){
       const url = Array.isArray(data?.output) ? data.output[0] : (data?.url || data?.image);
-      if(!url) return false;
+      if (!url) return false;
       const img = document.createElement("img");
       img.src = url;
       imgWrap.innerHTML = "";
@@ -83,106 +72,60 @@
     }
 
     async function text2img(prompt){
-      const { w, h } = dims();
-      // Alle Felder als Strings, wie in den offiziellen Beispielen:
+      const {w,h} = dims();
       const payload = {
         key: API_KEY,
-        model_id: MODEL_ID,
         prompt: String(prompt),
         negative_prompt: "",
         width: String(w),
         height: String(h),
-        samples: String(samplesEl.value),
-        num_inference_steps: String(stepsEl.value),
-        safety_checker: "no",
-        enhance_prompt: "yes",
+        samples: Number(samplesEl.value),
+        safety_checker: false,   // falls du Filter willst: true
         seed: null,
-        guidance_scale: 7.5,
-        multi_lingual: "yes",
-        panorama: "no",
-        self_attention: "no",
-        upscale: "no",
-        embeddings_model: null,
-        lora_model: null,
-        tomesd: "yes",
-        clip_skip: "2",
-        use_karras_sigmas: "yes",
-        vae: null,
-        lora_strength: null,
-        scheduler: "UniPCMultistepScheduler",
-        webhook: null,
-        track_id: null,
-        temp: "yes"
+        base64: false,
+        instant_response: false, // wenn true, kommt schneller "processing"
+        enhance_prompt: true
       };
-
       const res = await fetch(TXT2IMG_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: {"Content-Type":"application/json","Accept":"application/json"},
         body: JSON.stringify(payload)
       });
-      const raw = await res.text();
-      setDebug(raw, `HTTP ${res.status} ${res.statusText}`);
-      let data; try { data = JSON.parse(raw); } catch { data = { raw }; }
-      return data;
+      const text = await res.text();
+      setDebug(`HTTP ${res.status} ${res.statusText}\n` + text);
+      try { return JSON.parse(text); } catch { return {raw:text, statusCode:res.status}; }
     }
 
-    async function fetchQueued(request_id){
-      const payload = { key: API_KEY, request_id: String(request_id) };
-      const res = await fetch(FETCH_URL, {
+    async function fetchById(id){
+      const res = await fetch(FETCH_BASE + encodeURIComponent(id), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload)
+        headers: {"Content-Type":"application/json","Accept":"application/json"},
+        body: JSON.stringify({ key: API_KEY })
       });
-      const raw = await res.text();
-      setDebug(raw, `FETCH HTTP ${res.status} ${res.statusText}`);
-      let data; try { data = JSON.parse(raw); } catch { data = { raw }; }
-      return data;
-    }
-
-    async function reloadModel(){
-      const payload = { key: API_KEY, model_id: MODEL_ID };
-      const res = await fetch(RELOAD_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const raw = await res.text();
-      setDebug(raw, `RELOAD HTTP ${res.status} ${res.statusText}`);
-      let data; try { data = JSON.parse(raw); } catch { data = { raw }; }
-      return data;
+      const text = await res.text();
+      setDebug(`FETCH HTTP ${res.status} ${res.statusText}\n` + text);
+      try { return JSON.parse(text); } catch { return {raw:text, statusCode:res.status}; }
     }
 
     async function generate(){
       const prompt = promptEl.value.trim();
-      imgWrap.innerHTML = "";
-      if(!prompt){ alert("Bitte gib eine Eingabe ein!"); return; }
+      imgWrap.innerHTML = ""; setDebug("");
+      if (!prompt) return alert("Bitte gib eine Eingabe ein!");
 
       setStatus("⏳ Anfrage wird gesendet …");
-      let first = await text2img(prompt);
+      const first = await text2img(prompt);
 
-      // 1) Sofort fertig?
-      if (first?.status === "success" && showImageFromData(first)){
+      if (first?.status === "success" && showImageFromData(first)) {
         setStatus("✅ Fertig");
         return;
       }
-
-      // 2) Idle/Reload-Hinweis?
-      if ((first?.message || "").toLowerCase().includes("reload") || (first?.status || "").toLowerCase().includes("reload")) {
-        setStatus("⏳ Modell wird neu geladen … (dauert ~2 Minuten)");
-        await reloadModel();
-        // Nach kurzer Wartezeit nochmal versuchen
-        await new Promise(r => setTimeout(r, 20000));
-        first = await text2img(prompt);
-      }
-
-      // 3) Queued/Processing → Polling
-      const reqId = first?.id || first?.request_id;
-      if (reqId){
-        setStatus("⏳ In Warteschlange … (id: " + reqId + ")");
-        for (let i=0; i<40; i++){           // bis ~2 Minuten
+      if (first?.status === "processing" && (first?.id || first?.fetch_result)) {
+        const id = first.id || (first.fetch_result || "").split("/").pop();
+        setStatus("⏳ In Warteschlange … (id: " + id + ")");
+        for (let i=0; i<40; i++) {
           await new Promise(r => setTimeout(r, 3000));
-          const got = await fetchQueued(reqId);
-          if (got?.status === "success" && showImageFromData(got)){
+          const got = await fetchById(id);
+          if (got?.status === "success" && showImageFromData(got)) {
             setStatus("✅ Fertig");
             return;
           }
@@ -191,8 +134,8 @@
         return;
       }
 
-      // 4) Immer noch kein Bild → Fehlertext anzeigen
-      setStatus("❌ Fehler – Details unten im Debug.");
+      // Fehlerfall
+      setStatus("❌ Fehler – Details im Debug.");
     }
 
     btn.addEventListener("click", generate);
