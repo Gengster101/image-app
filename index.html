@@ -3,142 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bild Generator (ModelsLab v6)</title>
+  <title>Bilder App – Galerie & Einzelbild</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;background:#111;color:#eee;margin:20px;text-align:center}
-    h1{margin:8px 0}
-    .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
-    input,button,select{padding:10px;border-radius:8px;border:none;font-size:16px}
-    input{width:min(90vw,420px)}
-    button{background:#4cafef;color:#fff;font-weight:600;cursor:pointer}
-    button:hover{background:#3698d6}
-    img{max-width:min(92vw,720px);border-radius:12px;box-shadow:0 0 10px rgba(0,0,0,.5);margin-top:14px}
-    textarea{width:min(92vw,720px);height:220px;margin:14px auto 0;display:block;
-             font-family:monospace;border-radius:8px;border:none;padding:10px;background:#000;color:#0f0}
-    #status{margin-top:6px}
-    small{opacity:.85}
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+      background: #fafafa;
+    }
+    input, button, select {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+    }
+    #gallery {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    #gallery img {
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    pre {
+      margin-top: 20px;
+      text-align: left;
+      background: #eee;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
-  <h1>🖼️ Bild Generator</h1>
-  <small>Endpoint: <code>modelslab.com/api/v6/realtime/text2img</code></small>
+  <h1>Bildgenerator</h1>
+  <p>Gib einen Prompt ein:</p>
+  <input type="text" id="promptInput" placeholder="z. B. Katze mit Käse" size="40"/>
+  
+  <select id="modeSelect">
+    <option value="single">Einzelbild</option>
+    <option value="gallery">Galerie (mehrere Bilder)</option>
+  </select>
+  
+  <button id="generateBtn">Generieren</button>
 
-  <div class="row">
-    <input id="prompt" placeholder="Schreib hier deine Bild-Idee…" />
-    <button id="btn">Generieren</button>
-  </div>
-
-  <div class="row">
-    <select id="size">
-      <option value="512x512">512×512</option>
-      <option value="768x768">768×768</option>
-      <option value="1024x1024">1024×1024</option>
-    </select>
-    <select id="samples">
-      <option selected>1</option><option>2</option><option>3</option><option>4</option>
-    </select>
-  </div>
-
-  <div id="status"></div>
-  <div id="image"></div>
-  <textarea id="debug" placeholder="Debug-Ausgabe …" readonly></textarea>
+  <div id="gallery"></div>
+  <pre id="debug"></pre>
 
   <script>
-    // Hinweis: Key im Frontend ist sichtbar. Für Produktion: kleinen Backend-Proxy verwenden.
-    const API_KEY = "R9JFvW6IvVdgvP1SvR2N0m2LcEJGyfTSwCfjnJVkahuCHMLPqXRymaLcLL2d";
-    const TXT2IMG_URL = "https://modelslab.com/api/v6/realtime/text2img";
-    const FETCH_BASE  = "https://modelslab.com/api/v6/realtime/fetch/"; // + {id}
+    const API_KEY = "DEIN_API_KEY_HIER"; // <-- hier dein StableDiffusionAPI Key einsetzen
+    const API_URL = "https://stablediffusionapi.com/api/v3/text2img";
 
-    const promptEl = document.getElementById("prompt");
-    const sizeEl   = document.getElementById("size");
-    const samplesEl= document.getElementById("samples");
-    const btn      = document.getElementById("btn");
-    const statusEl = document.getElementById("status");
-    const imgWrap  = document.getElementById("image");
-    const debugEl  = document.getElementById("debug");
+    const btn = document.getElementById("generateBtn");
+    const input = document.getElementById("promptInput");
+    const gallery = document.getElementById("gallery");
+    const debug = document.getElementById("debug");
+    const modeSelect = document.getElementById("modeSelect");
 
-    const setStatus = (t="") => statusEl.textContent = t;
-    const setDebug  = (v) => debugEl.value = (typeof v==="string") ? v : JSON.stringify(v,null,2);
-    const dims = () => { const [w,h]=sizeEl.value.split("x").map(Number); return {w,h}; };
-
-    function showImageFromData(data){
-      const url = Array.isArray(data?.output) ? data.output[0] : (data?.url || data?.image);
-      if (!url) return false;
-      const img = document.createElement("img");
-      img.src = url;
-      imgWrap.innerHTML = "";
-      imgWrap.appendChild(img);
-      return true;
-    }
-
-    async function text2img(prompt){
-      const {w,h} = dims();
-      const payload = {
-        key: API_KEY,
-        prompt: String(prompt),
-        negative_prompt: "",
-        width: String(w),
-        height: String(h),
-        samples: Number(samplesEl.value),
-        safety_checker: false,   // falls du Filter willst: true
-        seed: null,
-        base64: false,
-        instant_response: false, // wenn true, kommt schneller "processing"
-        enhance_prompt: true
-      };
-      const res = await fetch(TXT2IMG_URL, {
-        method: "POST",
-        headers: {"Content-Type":"application/json","Accept":"application/json"},
-        body: JSON.stringify(payload)
-      });
-      const text = await res.text();
-      setDebug(`HTTP ${res.status} ${res.statusText}\n` + text);
-      try { return JSON.parse(text); } catch { return {raw:text, statusCode:res.status}; }
-    }
-
-    async function fetchById(id){
-      const res = await fetch(FETCH_BASE + encodeURIComponent(id), {
-        method: "POST",
-        headers: {"Content-Type":"application/json","Accept":"application/json"},
-        body: JSON.stringify({ key: API_KEY })
-      });
-      const text = await res.text();
-      setDebug(`FETCH HTTP ${res.status} ${res.statusText}\n` + text);
-      try { return JSON.parse(text); } catch { return {raw:text, statusCode:res.status}; }
-    }
-
-    async function generate(){
-      const prompt = promptEl.value.trim();
-      imgWrap.innerHTML = ""; setDebug("");
-      if (!prompt) return alert("Bitte gib eine Eingabe ein!");
-
-      setStatus("⏳ Anfrage wird gesendet …");
-      const first = await text2img(prompt);
-
-      if (first?.status === "success" && showImageFromData(first)) {
-        setStatus("✅ Fertig");
+    btn.addEventListener("click", async () => {
+      const prompt = input.value.trim();
+      const mode = modeSelect.value;
+      if (!prompt) {
+        alert("Bitte einen Prompt eingeben!");
         return;
       }
-      if (first?.status === "processing" && (first?.id || first?.fetch_result)) {
-        const id = first.id || (first.fetch_result || "").split("/").pop();
-        setStatus("⏳ In Warteschlange … (id: " + id + ")");
-        for (let i=0; i<40; i++) {
-          await new Promise(r => setTimeout(r, 3000));
-          const got = await fetchById(id);
-          if (got?.status === "success" && showImageFromData(got)) {
-            setStatus("✅ Fertig");
-            return;
-          }
+      gallery.innerHTML = "⏳ Generiere Bild(er)...";
+      debug.textContent = "";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: API_KEY,
+            prompt: prompt,
+            negative_prompt: "low quality",
+            width: 512,
+            height: 512,
+            samples: mode === "gallery" ? 3 : 1 // Galerie = mehrere Bilder
+          })
+        });
+
+        const data = await res.json();
+        console.log("API Antwort:", data);
+        debug.textContent = JSON.stringify(data, null, 2);
+
+        gallery.innerHTML = "";
+        if (Array.isArray(data.output)) {
+          data.output.forEach(url => {
+            const img = document.createElement("img");
+            img.src = url;
+            gallery.appendChild(img);
+          });
+        } else {
+          gallery.innerHTML = "❌ Keine Bilder im Response gefunden";
         }
-        setStatus("❌ Timeout beim Abholen – bitte später erneut probieren.");
-        return;
+      } catch (err) {
+        console.error(err);
+        gallery.innerHTML = "❌ Fehler bei der Bildgenerierung";
       }
-
-      // Fehlerfall
-      setStatus("❌ Fehler – Details im Debug.");
-    }
-
-    btn.addEventListener("click", generate);
+    });
   </script>
 </body>
 </html>
